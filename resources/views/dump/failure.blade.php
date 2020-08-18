@@ -5,6 +5,6 @@
         {{ $message }}
     </div>
     <div class="justify-content-center d-flex">
-        <a class="btn btn-primary" href="{{ $dump_route }}">Начать</a>
+        {{ $error }}
     </div>
 @endsection

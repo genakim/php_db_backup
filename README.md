@@ -1,61 +1,39 @@
-<p align="center"><img src="https://res.cloudinary.com/dtfbvvkyp/image/upload/v1566331377/laravel-logolockup-cmyk-red.svg" width="400"></p>
+# Прототип создания дампа базы данных средствами PHP
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/d/total.svg" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/v/stable.svg" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://poser.pugx.org/laravel/framework/license.svg" alt="License"></a>
-</p>
+## Примечание
+Данный функционал был протестирован с MySQL 8.0.20
 
-## About Laravel
+## Настройка проекта
+1. Настройте подключение к БД через файл .env в корне проекта
+1. `сomposer install`  
+1. `npm install && npm run prod`  
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Принцип работы:  
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+В процессе дампа используются классы:  
+App\Backup\Dumpers\MySQLDump - содержит логику формирования дампа.   
+App\Backup\DumpFile - запись данных в файл.  
+App\Backup\DumpState - хранит состояние процесса, хранится в сессии.  
+App\Backup\TableState - хранит состояние таблицы  
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Пользователю при входе на главную страницу предлагается создать дамп БД.
+При согласии будет произведен переход на страницу создания дампа `/dump`. 
+Контроллер этой страницы вызывает метод *dump* класса *MySQLDump* который и начинает процесс бэкапа.
+Данный метод возвращает значения:
+- `true` - успешное завершение дампа, выдается ссылка на скачивание файла.
+- `false` - в процессе.
 
-## Learning Laravel
+**Примечание**: Пришлось отказать от прямого редиректа контроллера на самого себя. Причина в том, что браузер начинает выдавать ошибку *TOO MANY REDIRECTS* через определенное время, причем процесс дампа продолжается. Поэтому решено было использовать аттрибут `<meta http-equiv="refresh" content="0">` чтобы браузер сам инициализировал запрос к контроллеру.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Сам процесс разделен на шаги:
+- Шаг 0: создание файла, блокировка таблиц, переопределение системных переменных
+- Шаг 1: получение информации по таблицам/представлениям, кол-во строк
+- Шаг 2: создание описания создание/удаления таблиц, представлений
+- Шаг 3: получение и обработка данных
+- Шаг 4: создание описания создание/удаления процедур, триггеров
+- Шаг 5: разблокировка таблиц, восстановление системных переменных, очищение информации по дампу
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+На каждом шаге производится проверка времени жизни скрипта.
+Как только время подходит к концу, сохраняются данные и выдается статистика клиенту. Далее браузер заново отправляет запрос на тот же адрес.
 
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Чтобы не нагружать файловую систему, на шаге 3, данные записываются по достижении минимального кол-ва строк, которое задается константой `MIN_ROWS_TO_WRITE` в классе MySQLDump.

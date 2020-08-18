@@ -5,6 +5,9 @@
         {{ $message }}
     </div>
     <div class="justify-content-center d-flex">
-        <a class="btn btn-primary" href="{{ $dump_route }}">Начать</a>
+        Размер файла {{ $file_size }}
+    </div>
+    <div class="justify-content-center d-flex">
+        <a class="btn btn-primary" href="{{ $download_url }}">Скачать</a>
     </div>
 @endsection

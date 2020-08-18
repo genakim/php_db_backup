@@ -14,3 +14,4 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', 'BackupController@index');
+Route::get('/dump', 'BackupController@dump')->name('dump');
